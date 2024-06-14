@@ -146,42 +146,32 @@ local function processCows(character)
 				if model:IsA("Model") and model.Name == "SacrificialCow" and model:FindFirstChild("Cow") then
 					local cow = model:FindFirstChild("Cow")
 					if cow and (cow.Position - position).magnitude < 5 then -- Check if cow is near the position
+						-- Check if Growing is false
 						local growingValue = cow:FindFirstChild("Growing")
 						local nurturedValue = cow:FindFirstChild("Nurtured")
-						
-						if growingValue and not growingValue.Value and nurturedValue and nurturedValue.Value then
-							-- Trigger Sacrifice prompt
-							local sacrificePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
-							triggerProximityPrompt(sacrificePrompt)
+						if growingValue and not growingValue.Value then
+							-- Trigger Nurture prompt if Nurtured is not true
+							if nurturedValue and not nurturedValue.Value then
+								local nurturePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Nurture")
+								triggerProximityPrompt(nurturePrompt)
+								wait(5) -- Wait for the cow to grow
+							end
+							-- Check if Nurtured is true and Growing is false
+							if nurturedValue and nurturedValue.Value then
+								-- Trigger Sacrifice prompt
+								local sacrificePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
+								triggerProximityPrompt(sacrificePrompt)
 
-							wait(1) -- Wait before moving to the sacrifice table
+								wait(1) -- Wait before moving to the sacrifice table
 
-							-- Teleport to the Sacrifice Table
-							humanoidRootPart.CFrame = CFrame.new(sacrificeTablePosition)
-							wait(1) -- Wait a moment to ensure the player is at the position
+								-- Teleport to the Sacrifice Table
+								humanoidRootPart.CFrame = CFrame.new(sacrificeTablePosition)
+								wait(1) -- Wait a moment to ensure the player is at the position
 
-							-- Trigger Sacrifice prompt at the Sacrifice Table
-							local tableSacrificePrompt = workspace:FindFirstChild("SacrificeTable"):FindFirstChild("cow"):FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
-							triggerProximityPrompt(tableSacrificePrompt)
-
-							-- Wait until the cow is successfully sacrificed (Nurtured becomes false)
-							repeat
-								wait(1)
-							until not nurturedValue.Value
-						elseif growingValue and not growingValue.Value and not nurturedValue.Value then
-							-- Trigger Nurture prompt
-							local nurturePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Nurture")
-							triggerProximityPrompt(nurturePrompt)
-
-							-- Wait for the cow to grow (Growing becomes true)
-							repeat
-								wait(1)
-							until growingValue.Value
-
-							-- Wait for the cow to be fully grown (Growing becomes false)
-							repeat
-								wait(1)
-							until not growingValue.Value
+								-- Trigger Sacrifice prompt at the Sacrifice Table
+								local tableSacrificePrompt = workspace:FindFirstChild("SacrificeTable"):FindFirstChild("cow"):FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
+								triggerProximityPrompt(tableSacrificePrompt)
+							end
 						end
 					end
 				end
