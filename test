@@ -1,0 +1,474 @@
+-- Include the Orion Library
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Constar678/UILibrary/main/OrionLibrary"))()
+
+-- Create a window with OrionLib
+local Window = OrionLib:MakeWindow({Name = "Bisaya Hub [Ancient Egypt RP]", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
+
+-- Create tabs for Main, Local Player, Teleports, and Credits
+local MainTab = Window:MakeTab({Name = "Main", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local TeleportsTab = Window:MakeTab({Name = "Teleports", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local LocalPlayerTab = Window:MakeTab({Name = "Local Player", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local CreditsTab = Window:MakeTab({Name = "Credits", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+
+-- Core Script
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local runService = game:GetService("RunService")
+local originalDurations = {}
+
+local cowPositions = {
+	Vector3.new(1161.006103515625, 11.004161834716797, 121.86416625976562),
+	Vector3.new(1161.006103515625, 11.004161834716797, 141.16416931152344),
+	Vector3.new(1234.006103515625, 11.004161834716797, 121.86415100097656),
+	Vector3.new(1234.006103515625, 11.004161834716797, 141.16415405273438)
+}
+
+local sacrificeTablePosition = Vector3.new(1197.7459716796875, 11.589889526367188, 64.87046813964844)
+
+_G.FarmCow = _G.FarmCow or false -- Ensure the variable exists
+_G.FarmWheat = _G.FarmWheat or false -- Ensure the variable exists
+_G.Fly = _G.Fly or false -- Ensure the variable exists
+_G.AutoSit = _G.AutoSit or false -- Ensure the variable exists
+_G.Speed = _G.Speed or 16 -- Ensure the variable exists
+_G.OneSecPrompt = _G.OneSecPrompt or false -- Ensure the variable exists
+
+local oreTypes = {"DiamondOre", "RubyOre", "GoldOre", "SilverOre", "IronOre", "CoalOre"}
+
+-- Teleport Locations
+local teleportLocations = {
+	["Temple"] = Vector3.new(1197, 13, 159),
+	["Stores"] = Vector3.new(1192, 10, 394),
+	["Ore Trader"] = Vector3.new(366, 9, 184),
+	["Wheat Field"] = Vector3.new(554, 10, 192),
+	["Arena"] = Vector3.new(1589, 49, 740),
+	["Palace"] = Vector3.new(1503, 9, 190),
+	["Mines"] = Vector3.new(1351, 7, 475),
+	["Prison"] = Vector3.new(1157, 9, -331)
+}
+
+local blackmarketdealers = {
+	["Basic Blackmarket Dealer"] = Vector3.new(842, 8, 422),
+	["Premium Blackmarket Dealer"] = Vector3.new(1656.484, -79.296, 531.379),
+	["Quality Blackmarket Dealer"] = Vector3.new(1238.75, 9.5, -372.25)
+}
+
+-- Function to teleport player to a location
+local function teleportToLocation(location)
+	if teleportLocations[location] then
+		player.Character.HumanoidRootPart.CFrame = CFrame.new(teleportLocations[location])
+		print("Teleported to: " .. location)
+	else
+		print("Invalid teleport location: " .. location)
+	end
+end
+
+local function teleportToBlackMarket(bmlocation)
+	if blackmarketdealers[bmlocation] then
+		player.Character.HumanoidRootPart.CFrame = CFrame.new(blackmarketdealers[bmlocation])
+		print("Teleported to: " .. bmlocation)
+	else	
+		print("Invalid teleport location: " .. bmlocation)
+	end
+end
+
+-- Function to trigger proximity prompt
+local function triggerProximityPrompt(prompt)
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.HoldDuration = 0 -- Set to 0 for instant activation
+		prompt:InputHoldBegin(Players.LocalPlayer)
+		wait(1)
+		prompt:InputHoldEnd(Players.LocalPlayer)
+	end
+end
+
+-- Function to set proximity prompt durations
+local function setProximityPromptDuration()
+	for _, prompt in ipairs(game:GetService("Workspace"):GetDescendants()) do
+		if prompt.ClassName == "ProximityPrompt" then
+			if _G.OneSecPrompt then
+				if not originalDurations[prompt] then
+					originalDurations[prompt] = prompt.HoldDuration
+				end
+				prompt.HoldDuration = 1
+			else
+				if originalDurations[prompt] then
+					prompt.HoldDuration = originalDurations[prompt]
+					originalDurations[prompt] = nil
+				end
+			end
+		end
+	end
+end
+
+-- Function to teleport to a specific ore type
+local function teleportToOre(selectedOre)
+	for _, oreNode in pairs(workspace.OreSpawns:GetChildren()) do
+		local oreTypeValue = oreNode:FindFirstChild("OreType")
+		local minedValue = oreNode:FindFirstChild("Mined")
+		if oreTypeValue and oreTypeValue.Value == selectedOre and minedValue and not minedValue.Value then
+			local mainPart = oreNode:FindFirstChildWhichIsA("BasePart", true)
+			if mainPart then
+				print("Teleporting to ore: " .. selectedOre)
+				player.Character.HumanoidRootPart.CFrame = mainPart.CFrame * CFrame.new(0, 5, 0)
+				return true
+			end
+		end
+	end
+	print("No available ores of type: " .. selectedOre)
+	return false
+end
+
+-- Function to process cows
+local function processCows(character)
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	-- Monitor the player's health
+	local healthConnection
+	healthConnection = humanoid.HealthChanged:Connect(function(health)
+		if health <= 30 then
+			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+		end
+	end)
+
+	while _G.FarmCow do
+		for _, position in ipairs(cowPositions) do
+			if not _G.FarmCow then break end -- Check if process is still active
+
+			-- Teleport the player to the cow position
+			humanoidRootPart.CFrame = CFrame.new(position)
+			wait(0.5) -- Wait a moment to ensure the player is at the position
+
+			-- Find the corresponding cow model at the position
+			for _, model in ipairs(workspace:GetChildren()) do
+				if not _G.FarmCow then break end -- Check if process is still active
+
+				if model:IsA("Model") and model.Name == "SacrificialCow" and model:FindFirstChild("Cow") then
+					local cow = model:FindFirstChild("Cow")
+					if cow and (cow.Position - position).magnitude < 5 then -- Check if cow is near the position
+						-- Check if Growing is false
+						local growingValue = cow:FindFirstChild("Growing")
+						local nurturedValue = cow:FindFirstChild("Nurtured")
+						if growingValue and not growingValue.Value then
+							-- Trigger Nurture prompt if Nurtured is not true
+							if nurturedValue and not nurturedValue.Value then
+								local nurturePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Nurture")
+								triggerProximityPrompt(nurturePrompt)
+								wait(5) -- Wait for the cow to grow
+							end
+							-- Check if Nurtured is true and Growing is false
+							if nurturedValue and nurturedValue.Value then
+								-- Trigger Sacrifice prompt
+								local sacrificePrompt = cow:FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
+								triggerProximityPrompt(sacrificePrompt)
+
+								wait(1) -- Wait before moving to the sacrifice table
+
+								-- Teleport to the Sacrifice Table
+								humanoidRootPart.CFrame = CFrame.new(sacrificeTablePosition)
+								wait(1) -- Wait a moment to ensure the player is at the position
+
+								-- Trigger Sacrifice prompt at the Sacrifice Table
+								local tableSacrificePrompt = workspace:FindFirstChild("SacrificeTable"):FindFirstChild("cow"):FindFirstChild("Attachment"):FindFirstChild("Sacrifice")
+								triggerProximityPrompt(tableSacrificePrompt)
+							end
+						end
+					end
+				end
+			end
+			if not _G.FarmCow then break end -- Check if process is still active
+			wait(0.5) -- Wait before moving to the next cow
+		end
+	end
+
+	-- Disconnect the health monitoring when the process stops
+	if healthConnection then
+		healthConnection:Disconnect()
+	end
+end
+
+local function processWheat(character)
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+	while _G.FarmWheat do
+		for _, v in pairs(workspace:GetChildren()) do
+			if v.Name == "WheatPlot" then
+				for _, a in pairs(v:GetChildren()) do
+					if a.Name == "WheatNode" then
+						for _, b in pairs(a:GetDescendants()) do
+							if b.Name == "ProximityPrompt" and b.Enabled then
+								-- Teleport to WheatNode
+								humanoidRootPart.CFrame = b.Parent.Parent.CFrame
+								wait(0.15)
+								fireproximityprompt(b)
+								task.wait(0.1)
+								-- Teleport to Sell location
+								for _, c in pairs(workspace:GetDescendants()) do
+									if c.Name == "Sell" then
+										humanoidRootPart.CFrame = c.CFrame
+										wait(0.15)
+									end
+								end
+							end
+							if not _G.FarmWheat then break end -- Check if process is still active
+						end
+					end
+				end
+			end
+		end
+		if not _G.FarmWheat then break end -- Check if process is still active
+		wait(0.5) -- Wait before repeating the process
+	end
+end
+
+local function fly()
+	local flyEnabled = false
+	local UserInputService = game:GetService("UserInputService")
+
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+	bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
+
+	local function enableFly()
+		bodyVelocity.Parent = player.Character.HumanoidRootPart
+		flyEnabled = true
+	end
+
+	local function disableFly()
+		bodyVelocity.Parent = nil
+		flyEnabled = false
+	end
+
+	local function flyStep()
+		if flyEnabled then
+			local newVelocity = Vector3.new(0, 0, 0)
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+				newVelocity = newVelocity + (workspace.CurrentCamera.CFrame.LookVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+				newVelocity = newVelocity - (workspace.CurrentCamera.CFrame.LookVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+				newVelocity = newVelocity - (workspace.CurrentCamera.CFrame.RightVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+				newVelocity = newVelocity + (workspace.CurrentCamera.CFrame.RightVector * 50)
+			end
+			bodyVelocity.Velocity = newVelocity
+		end
+	end
+
+	runService.RenderStepped:Connect(flyStep)
+	return enableFly, disableFly
+end
+
+local function autoSit()
+	while _G.AutoSit do
+		if workspace.Stores.Food.Seat.Occupant == nil then
+			workspace.Stores.Food.Seat:Sit(player.Character.Humanoid)
+		end
+		task.wait(1)
+	end
+end
+
+-- Function to continuously apply the movement speed
+local function applySpeed()
+	while true do
+		if player.Character and player.Character:FindFirstChild("Humanoid") then
+			player.Character.Humanoid.WalkSpeed = _G.Speed
+		end
+		wait(0.1)
+	end
+end
+
+-- Function to reset the player's character
+local function resetCharacter()
+	player.Character:BreakJoints()
+end
+
+-- Function to delete all lava in the Workspace
+local function deleteLava()
+	for _, v in pairs(game:GetService("Workspace"):GetChildren()) do
+		if v.Name == "Lava" then
+			v:Destroy()
+			wait()
+		end
+	end
+end
+
+-- Create toggle buttons to start and stop the processes
+MainTab:AddToggle({
+	Name = "Farm Cow (Prophet)",
+	Default = _G.FarmCow,
+	Callback = function(Value)
+		_G.FarmCow = Value
+		if _G.FarmCow then
+			coroutine.wrap(function()
+				processCows(player.Character or player.CharacterAdded:Wait())
+			end)()
+		end
+	end
+})
+
+MainTab:AddToggle({
+	Name = "Farm Wheat",
+	Default = _G.FarmWheat,
+	Callback = function(Value)
+		_G.FarmWheat = Value
+		if _G.FarmWheat then
+			coroutine.wrap(function()
+				processWheat(player.Character or player.CharacterAdded:Wait())
+			end)()
+		end
+	end
+})
+
+-- Add Auto Sit toggle
+MainTab:AddToggle({
+	Name = "Auto Sit (Food Store)",
+	Default = _G.AutoSit,
+	Callback = function(Value)
+		_G.AutoSit = Value
+		if _G.AutoSit then
+			coroutine.wrap(autoSit)()
+		end
+	end
+})
+
+-- Add 1 Sec Proximity Prompt toggle
+MainTab:AddToggle({
+	Name = "Faster Proximity Prompt",
+	Default = _G.OneSecPrompt,
+	Callback = function(Value)
+		_G.OneSecPrompt = Value
+		setProximityPromptDuration()
+	end
+})
+
+-- Add Force Reset button
+MainTab:AddButton({
+	Name = "Force Reset (Instant Full stats w/out losing Team)",
+	Callback = function()
+		resetCharacter()
+	end
+})
+
+-- Add Delete Lava button
+MainTab:AddButton({
+	Name = "Delete Lava",
+	Callback = function()
+		deleteLava()
+	end
+})
+
+-- Add Dropdown for teleporting to specific locations in the Teleports tab
+TeleportsTab:AddDropdown({
+	Name = "Select Location",
+	Default = "Select Location",
+	Options = {"Temple", "Stores", "Ore Trader", "Wheat Field", "Arena", "Palace", "Mines", "Prison"},
+	Callback = function(location)
+		teleportToLocation(location)
+	end
+})
+
+-- Add Dropdown for teleporting to ores
+TeleportsTab:AddDropdown({
+	Name = "Teleport to Ore",
+	Default = "Select Ore",
+	Options = oreTypes,
+	Callback = function(selectedOre)
+		if not teleportToOre(selectedOre) then
+			print("No ores available for: " .. selectedOre)
+		end
+	end
+})
+
+TeleportsTab:AddDropdown({
+	Name = "Blackmarket Dealers Spawn Location",
+	Default = "Teleport to Blackmarket",
+	Options = {"Basic Blackmarket Dealer", "Premium Blackmarket Dealer", "Quality Blackmarket Dealer"},
+	Callback = function(bmlocation)
+		teleportToBlackMarket((bmlocation))
+	end
+})
+
+-- Add Credits content in the Credits tab
+CreditsTab:AddParagraph("Credits", "Made by Jaypee\nUI: Orion UI Library\nDiscord: Soon!")
+
+-- Event listener for character respawn
+player.CharacterAdded:Connect(function(character)
+	if _G.FarmCow then
+		coroutine.wrap(function()
+			processCows(character)
+		end)()
+	end
+	if _G.FarmWheat then
+		coroutine.wrap(function()
+			processWheat(character)
+		end)()
+	end
+end)
+
+-- Start the processes if they are already set to true
+if _G.FarmCow then
+	coroutine.wrap(function()
+		processCows(player.Character or player.CharacterAdded:Wait())
+	end)()
+end
+
+if _G.FarmWheat then
+	coroutine.wrap(function()
+		processWheat(player.Character or player.CharacterAdded:Wait())
+	end)()
+end
+
+-- Add Infinite Yield button
+LocalPlayerTab:AddButton({
+	Name = "Infinite Yield",
+	Callback = function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
+	end
+})
+
+-- Add Movement Speed slider
+LocalPlayerTab:AddSlider({
+	Name = "Movement Speed",
+	Min = 16,
+	Max = 100,
+	Default = 16,
+	Color = Color3.fromRGB(255, 255, 255),
+	Increment = 1,
+	ValueName = "Speed",
+	Callback = function(Value)
+		_G.Speed = Value
+	end
+})
+
+-- Add Fly toggle
+local enableFly, disableFly = fly()
+
+LocalPlayerTab:AddToggle({
+	Name = "Fly",
+	Default = _G.Fly,
+	Callback = function(Value)
+		_G.Fly = Value
+		if _G.Fly then
+			enableFly()
+		else
+			disableFly()
+		end
+	end
+})
+
+-- Start the apply speed function
+coroutine.wrap(applySpeed)()
+
+-- Set proximity prompt duration periodically
+local function periodicProximityPromptCheck()
+	while true do
+		setProximityPromptDuration()
+		wait(5) -- Check every 5 seconds
+	end
+end
+
+coroutine.wrap(periodicProximityPromptCheck)()
