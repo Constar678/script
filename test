@@ -393,7 +393,7 @@ TeleportsTab:AddDropdown({
 })
 
 -- Add Credits content in the Credits tab
-CreditsTab:AddParagraph("Credits", "Made by Jaypee\nUI: Orion UI Library\nDiscord: Soon!")
+CreditsTab:AddParagraph("Credits", "Made by Jaypee\nUI: Orion UI Library\nFound Bug? Dm me in Discord: jaypeeofficial")
 
 -- Event listener for character respawn
 player.CharacterAdded:Connect(function(character)
